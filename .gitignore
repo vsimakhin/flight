@@ -1,0 +1,16 @@
+bin
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+dist/
+
+flight-output.log
+certs
+
+app/ui/node_modules/
+
+.vscode/
