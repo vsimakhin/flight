@@ -1,4 +1,4 @@
-module github.com/vsimakhin/web-logbook
+module github.com/vsimakhin/flight
 
 go 1.24.7
 

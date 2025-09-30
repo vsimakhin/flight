@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vsimakhin/web-logbook/internal/nighttime"
+	"github.com/vsimakhin/flight/internal/nighttime"
 )
 
 func (app *application) calculateNightTime(fr FlightRecord) (time.Duration, error) {
