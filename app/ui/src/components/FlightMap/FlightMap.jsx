@@ -22,30 +22,8 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import CardHeader from '@mui/material/CardHeader'
 // Custom components and libraries
-import { queryClient } from '../../util/http/http';
 import icon from "../../assets/favicon.ico";
-import { fetchAirport } from '../../util/http/http';
-
-const getAirportData = async (id) => {
-  try {
-    // Check cache first
-    const cachedData = queryClient.getQueryData(["airports", id]);
-    if (cachedData) {
-      return cachedData;
-    }
-
-    const response = await queryClient.fetchQuery({
-      queryKey: ["airports", id],
-      queryFn: ({ signal }) => fetchAirport({ signal, id }),
-      staleTime: 86400000, // 24 hours
-      gcTime: 86400000, // 24 hours
-    });
-
-    return response;
-  } catch {
-    return null;
-  }
-}
+import useLogbook from '../../hooks/useLogbook';
 
 const addMarker = (features, airport) => {
   /**
@@ -120,6 +98,8 @@ export const FlightMap = ({ data, title = "Flight Map" }) => {
   const containerRef = useRef(null);
   const closerRef = useRef(null);
   const contentRef = useRef(null);
+
+  const { getAirportData } = useLogbook();
 
   const handleMapClick = useCallback((evt, map, overlay) => {
     const coordinate = evt.coordinate;

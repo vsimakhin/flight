@@ -24,9 +24,19 @@ export const FLIGHT_INITIAL_STATE = {
 };
 
 export const PLACE_SLOT_PROPS = {
-  htmlInput: { style: { textTransform: 'uppercase' }, onInput: (e) => { e.target.value = e.target.value.toUpperCase() } }
+  htmlInput: { maxLength: 4, style: { textTransform: 'uppercase' }, onInput: (e) => { e.target.value = e.target.value.toUpperCase() } }
 }
 
 export const TIME_SLOT_PROPS = {
-  htmlInput: { maxLength: 4, onInput: (e) => { e.target.value = e.target.value.replace(/[^0-9]/g, '') }, inputMode: 'numeric' }
+  htmlInput: {
+    maxLength: 4,
+    onInput: (e) => {
+      let v = e.target.value.replace(/[^0-9]/g, '');
+      if (v && parseInt(v, 10) > 2459) {
+        v = '';
+      }
+      e.target.value = v;
+    },
+    inputMode: 'numeric'
+  }
 }

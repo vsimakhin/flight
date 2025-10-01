@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import dayjs from 'dayjs';
 // Custom
-import { fetchDistance, fetchNightTime } from "../util/http/http";
+import { fetchAirport, fetchDistance, fetchNightTime, queryClient } from "../util/http/http";
 import { useErrorNotification } from "./useAppNotifications";
 
 export const useLogbook = () => {
@@ -41,6 +41,32 @@ export const useLogbook = () => {
     return nightTime || 0;
   }, [getNightTime]);
 
+
+  // mutation to fetch the airport
+  const { mutateAsync: getAirport, isError: isErrorGetAirport, error: errorGetAirport } = useMutation({
+    mutationFn: ({ signal, id }) => fetchAirport({ signal, id }),
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(["airports", variables.id], data);
+    },
+  })
+  useErrorNotification({ isError: isErrorGetAirport, error: 'Cannot find the airport code', fallbackMessage: 'Cannot find the airport code' });
+
+  /**
+   * Fetch the airport data
+   * @param {string} id - Airport ICAO or IATA code
+   * @returns {object} - Airport data
+   */
+  const getAirportData = useCallback(async (id) => {
+    // Check cache first
+    const cachedData = queryClient.getQueryData(["airports", id]);
+    if (cachedData) {
+      return cachedData;
+    }
+
+    const airport = await getAirport({ id });
+    return airport;
+  }, [getAirport])
+
   /**
    * Calculate total flight time considering overnight flights
    * @param {object} flight - Flight record object
@@ -64,7 +90,7 @@ export const useLogbook = () => {
     return `${hours}:${minutes.toString().padStart(2, "0")}`;
   }, []);
 
-  return { calculateDistance, calculateNightTime, calculateTotalTime };
+  return { calculateDistance, calculateNightTime, calculateTotalTime, getAirportData };
 }
 
 export default useLogbook;

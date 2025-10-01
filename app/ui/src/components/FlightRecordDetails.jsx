@@ -5,12 +5,14 @@ import CardContent from "@mui/material/CardContent";
 import Grid from "@mui/material/Grid";
 import { DatePicker } from "@mui/x-date-pickers";
 import PlaceField from "./PlaceField.jsx";
+import HelpButton from "./HelpButton.jsx";
 
 export const FlightRecordDetails = ({ flight, handleChange }) => {
   return (
     <Card >
       <CardContent>
-        <CardHeader title="Flight" slotProps={{ title: { variant: "overline" } }} sx={{ p: 0, mb: 1 }}></CardHeader>
+        <CardHeader title="Flight" slotProps={{ title: { variant: "overline" } }} sx={{ p: 0, mb: 1 }}
+          action={<HelpButton />}></CardHeader>
         <Grid container spacing={1} columns={11}>
           <Grid size={{ xs: 11, sm: 3, md: 3, lg: 3, xl: 3 }}>
             <DatePicker
