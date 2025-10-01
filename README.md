@@ -32,3 +32,7 @@ The file `airport.json` has to be converted (to reduce the size and make it in m
 ```bash
 jq -c 'to_entries | map({icao: .key} + .value)' airports.json > app/db/airports.json
 ```
+
+## Related Projects
+
+📖 Check out the [EASA logbook project](https://github.com/vsimakhin/web-logbook).
