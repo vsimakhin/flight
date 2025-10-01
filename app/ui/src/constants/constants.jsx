@@ -32,7 +32,7 @@ export const TIME_SLOT_PROPS = {
     maxLength: 4,
     onInput: (e) => {
       let v = e.target.value.replace(/[^0-9]/g, '');
-      if (v && parseInt(v, 10) > 2459) {
+      if (v && parseInt(v, 10) > 2359) {
         v = '';
       }
       e.target.value = v;
