@@ -5,7 +5,7 @@ go 1.24.7
 require (
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/cors v1.2.2
-	github.com/nathan-osman/go-sunrise v1.1.0
+	github.com/mstephenholl/go-solar v0.0.0-20251023163936-4654cb7f51c9
 	github.com/stretchr/testify v1.11.1
 )
 
