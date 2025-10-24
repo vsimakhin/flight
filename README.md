@@ -18,11 +18,11 @@ Then you can open it in your browser http://localhost:4000
 
 ## Changelog
 
-## [Unreleased]
+## [0.0.4] - 24.10.2025
 
 - Fix/Update: Simplified and corrected night time calculation. Previously, it could be inaccurate for routes on the opposite side of the globe from Europe.
 
-## [v0.0.3] - 01.10.2025
+## [0.0.3] - 01.10.2025
 
 - First public release
 
@@ -40,3 +40,20 @@ jq -c 'to_entries | map({icao: .key} + .value)' airports.json > app/db/airports.
 ## Related Projects
 
 📖 Check out the [EASA logbook project](https://github.com/vsimakhin/web-logbook).
+
+# Used libraries
+
+Backend:
+* chi web-server https://github.com/go-chi/chi
+* go-solar https://github.com/mstephenholl/go-solar
+* testify https://github.com/stretchr/testify
+
+Frontend:
+* ViteJS https://vite.dev/
+* React https://react.dev/
+* Material UI https://mui.com/material-ui/
+* Material Toolpad core https://mui.com/toolpad/core/introduction/
+* Openlayers https://openlayers.org/
+* dayjs https://github.com/iamkun/dayjs
+* TanStack Query https://tanstack.com/query/
+* arc.js https://github.com/springmeyer/arc.js
