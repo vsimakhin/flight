@@ -18,7 +18,7 @@ Then you can open it in your browser http://localhost:4000
 
 ## Changelog
 
-## [0.0.5] - 08.12.2025
+## [0.0.6] - 07.03.2026
 
 - Update: Airport DB.
 - Update: Golang and npm packages/security patches.
