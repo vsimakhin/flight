@@ -1,11 +1,11 @@
 module github.com/vsimakhin/flight
 
-go 1.24.10
+go 1.25.7
 
 require (
-	github.com/go-chi/chi/v5 v5.2.3
+	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/cors v1.2.2
-	github.com/mstephenholl/go-solar v0.0.0-20251028142522-af3d09fa2c49
+	github.com/mstephenholl/go-solar v1.0.1
 	github.com/stretchr/testify v1.11.1
 )
 
