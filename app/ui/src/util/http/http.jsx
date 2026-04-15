@@ -50,6 +50,10 @@ export const fetchDistance = async ({ signal, departure, arrival }) => {
 }
 
 export const fetchAirport = async ({ signal, id }) => {
+  if (id.length !== 3 && id.length !== 4) {
+    return null;
+  }
+
   const url = `${API_URL}/airport/${id}`;
   const options = {
     method: 'GET',

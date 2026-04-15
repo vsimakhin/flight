@@ -38,25 +38,25 @@ export const MainPage = () => {
 
   const { calculateNightTime, calculateTotalTime } = useLogbook();
 
-  const handleTimeChange = useCallback(async () => {
-    // check length for the time field
-    if (flight.departure.time.length === 4 && flight.arrival.time.length === 4) {
-      const total_time = calculateTotalTime(flight);
-      handleChange("time.total_time", total_time);
-
-      // night time
-      if (flight.date && flight.departure.place && flight.arrival.place) {
-        const nightTime = parseInt(await calculateNightTime(flight)) || 0;
-        handleChange("time.night_time", convertMinutesToTime(nightTime));
-      }
-    }
-  }, [flight, handleChange, calculateNightTime]);
-
   useEffect(() => {
-    handleTimeChange();
-  }, [flight.date, flight.departure.time, flight.arrival.time]);
+    const handleTimeChange = async () => {
+      // check length for the time field
+      if (flight.departure.time.length === 4 && flight.arrival.time.length === 4) {
+        const total_time = calculateTotalTime(flight);
+        handleChange("time.total_time", total_time);
 
-  const flightMap = useMemo(() => (<FlightMap data={[flight]} />), [flight.redraw])
+        // night time
+        if (flight.date && flight.departure.place && flight.arrival.place) {
+          const nightTime = parseInt(await calculateNightTime(flight)) || 0;
+          handleChange("time.night_time", convertMinutesToTime(nightTime));
+        }
+      }
+    };
+
+    handleTimeChange();
+  }, [flight.date, flight.departure.time, flight.arrival.time, calculateNightTime, calculateTotalTime, handleChange]);
+
+  const flightMap = useMemo(() => (<FlightMap sx={{ mt: 1 }} data={[flight]} />), [flight.redraw])
 
   return (
     <AppTheme>

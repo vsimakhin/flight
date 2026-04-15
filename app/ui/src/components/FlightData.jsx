@@ -19,7 +19,7 @@ export const FlightData = ({ flight }) => {
   }, []);
 
   return (
-    <Card sx={{ mt: 2 }}>
+    <Card sx={{ mt: 1 }}>
       <CardContent>
         <CardHeader title="Flight Data" slotProps={{ title: { variant: "overline" } }} sx={{ p: 0, mb: 1 }}></CardHeader>
         <Grid container spacing={1}>
