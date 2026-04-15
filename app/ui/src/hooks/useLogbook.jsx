@@ -43,7 +43,7 @@ export const useLogbook = () => {
 
 
   // mutation to fetch the airport
-  const { mutateAsync: getAirport, isError: isErrorGetAirport, error: errorGetAirport } = useMutation({
+  const { mutateAsync: getAirport, isError: isErrorGetAirport } = useMutation({
     mutationFn: ({ signal, id }) => fetchAirport({ signal, id }),
     onSuccess: (data, variables) => {
       queryClient.setQueryData(["airports", variables.id], data);

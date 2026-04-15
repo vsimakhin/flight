@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 // css
 import 'ol/ol.css';
-import './map.css';
 // openlayers
 import Map from 'ol/Map';
 import View from 'ol/View';
@@ -16,16 +15,17 @@ import LineString from 'ol/geom/LineString';
 import { Style, Icon, Fill, Text } from 'ol/style';
 import Overlay from 'ol/Overlay';
 import { transform } from 'ol/proj';
-import { GreatCircle } from 'arc/arc';
 // MUI UI elements
+import CardHeader from '@mui/material/CardHeader'
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import CardHeader from '@mui/material/CardHeader'
+import Typography from '@mui/material/Typography';
 // Custom components and libraries
+import { DownloadMapButton } from './DownloadMapButton';
 import icon from "../../assets/favicon.ico";
 import useLogbook from '../../hooks/useLogbook';
 
-const addMarker = (features, airport) => {
+const addMarker = (features, airport, options) => {
   /**
    * Code string for an airport based on its IATA and ICAO codes.
    * If the airport has both IATA and ICAO codes and they are different, 
@@ -50,172 +50,234 @@ const addMarker = (features, airport) => {
   feature.setStyle(
     new Style({
       image: new Icon({ src: icon }),
-      text: new Text({
+      text: options.airport_ids ? new Text({
         text: code,
         offsetY: -12,
         scale: 1.3,
         fill: new Fill({
           color: '#333',
         }),
-      }),
+      }) : null,
     }),
   );
 
   features.push(feature);
 }
 
-const drawGreatCircleLine = (departure, arrival, vectorSource) => {
-  // Create unique key for the line
-  const airports = [departure.icao, arrival.icao].sort();
-  const lineKey = `line-${airports[0]}-${airports[1]}`;
+const createGreatCircleLine = (start, end, segments = 64) => {
+  const lon1 = start.lon * Math.PI / 180
+  const lat1 = start.lat * Math.PI / 180
+  const lon2 = end.lon * Math.PI / 180
+  const lat2 = end.lat * Math.PI / 180
 
-  // Check if line already exists
-  const exists = vectorSource.getFeatures().some(f => f.get('lineKey') === lineKey);
-  if (exists) return;
+  const coords = []
 
-  const arcGenerator = new GreatCircle(
-    { x: departure.lon, y: departure.lat },
-    { x: arrival.lon, y: arrival.lat }
-  );
+  const d = 2 * Math.asin(Math.sqrt(Math.sin((lat1 - lat2) / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin((lon1 - lon2) / 2) ** 2))
 
-  const arcLine = arcGenerator.Arc(100, { offset: 10 });
-  if (arcLine.geometries.length > 0) {
-    const coordinates = arcLine.geometries[0].coords.map((geometry) =>
-      transform([geometry[0], geometry[1]], 'EPSG:4326', 'EPSG:3857')
-    );
+  for (let i = 0; i <= segments; i++) {
+    const f = i / segments
+    const A = Math.sin((1 - f) * d) / Math.sin(d)
+    const B = Math.sin(f * d) / Math.sin(d)
+    const x = A * Math.cos(lat1) * Math.cos(lon1) + B * Math.cos(lat2) * Math.cos(lon2)
+    const y = A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2)
+    const z = A * Math.sin(lat1) + B * Math.sin(lat2)
+    const lat = Math.atan2(z, Math.sqrt(x * x + y * y))
+    const lon = Math.atan2(y, x)
 
-    const lineFeature = new LineString(coordinates);
-    const feature = new Feature({
-      geometry: lineFeature,
-      lineKey: lineKey
-    });
-    vectorSource.addFeature(feature);
+    coords.push(transform([lon * 180 / Math.PI, lat * 180 / Math.PI], 'EPSG:4326', 'EPSG:3857'))
   }
+
+  return new LineString(coords)
 }
 
-export const FlightMap = ({ data, title = "Flight Map" }) => {
+const drawGreatCircleLine = (departure, arrival, vectorSource) => {
+  const geometry = createGreatCircleLine(departure, arrival)
+  const routeFeature = new Feature({ geometry, type: 'route' })
+  vectorSource.addFeature(routeFeature)
+}
+
+const drawTrackLog = (flightTrack, vectorSource, flightId) => {
+  const track = JSON.parse(atob(flightTrack));
+
+  const coordinates = track.map((geometry) =>
+    transform([geometry[1], geometry[0]], 'EPSG:4326', 'EPSG:3857')
+  );
+
+  const lineFeature = new LineString(coordinates);
+  const feature = new Feature({
+    geometry: lineFeature,
+    lineKey: `track-${flightId}`,
+  });
+  vectorSource.addFeature(feature);
+}
+
+const DEFAULT_OPTIONS = { routes: true, tracks: false, airport_ids: true, icon: 'ico' };
+
+export const FlightMap = ({ data, options = DEFAULT_OPTIONS, title = "Flight Map", sx, airportsMap }) => {
   const mapRef = useRef(null);
   const containerRef = useRef(null);
-  const closerRef = useRef(null);
-  const contentRef = useRef(null);
+
+  // OpenLayers persistent objects
+  const mapRefInstance = useRef(null);
+  const vectorSourceRef = useRef(new VectorSource());
+  const overlayRef = useRef(null);
+
+  const [map, setMap] = useState(null);
+  const [distance, setDistance] = useState(0);
+  const [selectedFeature, setSelectedFeature] = useState(null);
 
   const { getAirportData } = useLogbook();
 
-  const handleMapClick = useCallback((evt, map, overlay) => {
-    const coordinate = evt.coordinate;
-    const feature = map.forEachFeatureAtPixel(evt.pixel, (feature) => feature);
+  useEffect(() => {
+    if (!mapRef.current) return;
 
-    if (!feature || !feature.get("name")) {
-      closerRef.current.onclick();
-      return;
-    }
+    overlayRef.current = new Overlay({ element: containerRef.current });
+    const vectorLayer = new VectorLayer({ source: vectorSourceRef.current });
 
-    contentRef.current.innerHTML = `
-      <strong>Airport:</strong> ${feature.get('code')}<br>
-      <strong>Name:</strong> ${feature.get('name')}<br>
-      <strong>Country:</strong> ${feature.get('country')}<br>
-      <strong>City:</strong> ${feature.get('city')}<br>
-      <strong>Elevation:</strong> ${feature.get('elevation')}<br>
-      <strong>Lat/Lon:</strong> ${feature.get('coordinates')}<br>
-    `;
-    overlay.setPosition(coordinate);
+    const mapInstance = new Map({
+      target: mapRef.current,
+      layers: [new TileLayer({ source: new OSM() }), vectorLayer],
+      view: new View({
+        center: transform([10, 45], "EPSG:4326", "EPSG:3857"),
+        zoom: 4,
+      }),
+      controls: [new FullScreen()],
+      overlays: [overlayRef.current],
+    });
+
+    mapInstance.on("singleclick", (evt) => {
+      const feature = mapInstance.forEachFeatureAtPixel(evt.pixel, (f) => f);
+
+      if (feature && feature.get("name")) {
+        setSelectedFeature({
+          coordinate: evt.coordinate,
+          code: feature.get("code"),
+          name: feature.get("name"),
+          country: feature.get("country"),
+          city: feature.get("city"),
+          elevation: feature.get("elevation"),
+          coordinates: feature.get("coordinates"),
+        });
+
+        overlayRef.current.setPosition(evt.coordinate);
+      } else {
+        setSelectedFeature(null);
+        overlayRef.current.setPosition(undefined);
+      }
+    });
+
+    mapRefInstance.current = mapInstance;
+    setMap(mapInstance);
+
+    return () => {
+      mapInstance.setTarget(null);
+      mapRefInstance.current = null;
+      setMap(null);
+    };
   }, []);
 
   useEffect(() => {
-    let map;
+    if (!map || !data) return;
 
-    if (mapRef.current) {
-      const vectorSource = new VectorSource();
-      const vectorLayer = new VectorLayer({ source: vectorSource });
+    let cancelled = false;
 
-      const overlay = new Overlay({
-        element: containerRef.current,
-        autoPan: { animation: { duration: 250 } },
-      });
+    const updateMapData = async () => {
+      setDistance(0);
+      vectorSourceRef.current.clear();
 
-      closerRef.current.onclick = function () {
-        overlay.setPosition(undefined);
-        closerRef.current.blur();
-        return false;
-      };
+      const features = [];
+      let totalDistance = 0;
 
-      map = new Map({
-        target: mapRef.current,
-        layers: [
-          new TileLayer({ source: new OSM() }),
-          vectorLayer,
-        ],
-        view: new View({
-          center: transform([10, 45], 'EPSG:4326', 'EPSG:3857'),
-          zoom: 4,
-        }),
-        controls: [new FullScreen()],
-        overlays: [overlay],
-      });
+      const airportPromises = data.map(async (flight) => {
+        if (!flight.departure.place || !flight.arrival.place) return null;
 
-      if (data) {
-        (async () => {
-          const features = [];
-          const airportPromises = data.map(async (flight) => {
-            if (!flight.departure.place || !flight.arrival.place) return null;
+        const [departure, arrival] = await Promise.all([
+          getAirportData(flight.departure.place, airportsMap),
+          getAirportData(flight.arrival.place, airportsMap),
+        ]);
 
-            const [departure, arrival] = await Promise.all([
-              getAirportData(flight.departure.place),
-              getAirportData(flight.arrival.place),
-            ]);
-            if (!departure || !arrival) return null;
+        if (!departure || !arrival) return null;
 
-            addMarker(features, departure);
-            addMarker(features, arrival);
+        addMarker(features, departure, options);
+        addMarker(features, arrival, options);
 
-            drawGreatCircleLine(departure, arrival, vectorSource);
-            return { departure, arrival };
-          });
+        const fullRoute = [departure, arrival];
 
-          const results = await Promise.all(airportPromises);
-          const validResults = results.filter(Boolean);
-          if (validResults.length === 0) return;
-
-          const lons = validResults.reduce((sum, { departure, arrival }) => sum + departure.lon + arrival.lon, 0) / (validResults.length * 2);
-          const lats = validResults.reduce((sum, { departure, arrival }) => sum + departure.lat + arrival.lat, 0) / (validResults.length * 2);
-
-          if (lats !== 0 || lons !== 0) {
-            map.getView().setCenter(transform([lons, lats], 'EPSG:4326', 'EPSG:3857'));
+        if (options.routes) {
+          for (let i = 0; i < fullRoute.length - 1; i++) {
+            drawGreatCircleLine(fullRoute[i], fullRoute[i + 1], vectorSourceRef.current);
           }
+        }
 
-          vectorSource.addFeatures(features);
-          map.getView().fit(vectorSource.getExtent(), { size: map.getSize(), maxZoom: 16, padding: [30, 30, 30, 30] });
-        })();
-      }
+        if (options.tracks && flight.track) {
+          drawTrackLog(flight.track, vectorSourceRef.current, flight.uuid || flight.id);
+        }
 
-      map.on('singleclick', (evt) => handleMapClick(evt, map, overlay));
-    }
+        totalDistance += flight.distance;
 
-    return () => {
-      if (map) {
-        map.setTarget(null);
+        return { departure, arrival };
+      });
+
+      await Promise.all(airportPromises);
+      if (cancelled) return;
+
+      setDistance(totalDistance);
+
+      if (features.length > 0) {
+        vectorSourceRef.current.addFeatures(features);
+        map.updateSize();
+        map.getView().fit(vectorSourceRef.current.getExtent(), {
+          maxZoom: 16,
+          padding: [30, 30, 30, 30],
+          duration: 100,
+        });
       }
     };
-  }, [data, handleMapClick]);
+
+    updateMapData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [map, data, options, airportsMap]);
+
+  const handleClosePopup = (e) => {
+    e?.preventDefault();
+    setSelectedFeature(null);
+    overlayRef.current?.setPosition(undefined);
+  };
+
+  if (!data) return null;
 
   return (
     <>
-      {data && (
-        <>
-          <Card variant="outlined" sx={{ mt: 2, height: '60vh', position: 'relative' }}>
-            <CardContent sx={{ height: '100%' }}>
-              <CardHeader title={title} slotProps={{ title: { variant: "overline" } }} sx={{ p: 0, mb: 1 }} />
-              <div ref={mapRef} style={{ width: '100%', height: 'calc(100% - 35px)', borderRadius: '4px', overflow: 'hidden' }}></div>
-            </CardContent>
-          </Card>
-          <Card ref={containerRef} className="ol-popup">
-            <CardContent>
-              <a ref={closerRef} href="#" id="popup-closer" className="ol-popup-closer"></a>
-              <div ref={contentRef} id="popup-content"></div>
-            </CardContent>
-          </Card>
-        </>
-      )}
+      <Card variant="outlined" sx={{ ...sx, height: "85vh", position: "relative" }}>
+        <CardContent sx={{ height: "100%" }}>
+          <CardHeader title={title} action={map ? <DownloadMapButton map={map} /> : null} />
+          <div ref={mapRef} style={{ width: "100%", height: "calc(100% - 50px)", borderRadius: "4px", overflow: "hidden" }} />
+          {distance > 0 && (
+            <Typography sx={{ mt: 1 }}>
+              {`Distance: ${distance.toLocaleString(undefined, { maximumFractionDigits: 2, })} nm / ${(distance * 1.852).toLocaleString(undefined, { maximumFractionDigits: 2, })} km`}
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card ref={containerRef} sx={{ display: selectedFeature ? "block" : "none" }}>
+        <CardContent sx={{ position: "relative", pt: 4 }}>
+          <a href="#" id="popup-closer" onClick={handleClosePopup}></a>
+          {selectedFeature && (
+            <div id="popup-content">
+              <Typography variant="subtitle2" sx={{ mb: 1 }}><strong>Airport:</strong> {selectedFeature.code}</Typography>
+              <Typography variant="body2"><strong>Name:</strong> {selectedFeature.name}</Typography>
+              <Typography variant="body2"><strong>Country:</strong> {selectedFeature.country}</Typography>
+              <Typography variant="body2"><strong>City:</strong> {selectedFeature.city}</Typography>
+              <Typography variant="body2"><strong>Elevation:</strong> {selectedFeature.elevation}</Typography>
+              <Typography variant="body2"><strong>Lat/Lon:</strong> {selectedFeature.coordinates}</Typography>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </>
   );
 };
