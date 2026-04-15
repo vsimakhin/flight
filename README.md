@@ -18,9 +18,10 @@ Then you can open it in your browser http://localhost:4000
 
 ## Changelog
 
-## [0.0.6] - 07.03.2026
+## [0.0.7] - 15.04.2026
 
 - Update: Airport DB.
+- Update: Removed toolpad/core and arc modules.
 - Update: Golang and npm packages/security patches.
 
 The full changelog is [here](https://github.com/vsimakhin/flight/blob/main/CHANGELOG.md)
@@ -49,8 +50,6 @@ Frontend:
 * ViteJS https://vite.dev/
 * React https://react.dev/
 * Material UI https://mui.com/material-ui/
-* Material Toolpad core https://mui.com/toolpad/core/introduction/
 * Openlayers https://openlayers.org/
 * dayjs https://github.com/iamkun/dayjs
 * TanStack Query https://tanstack.com/query/
-* arc.js https://github.com/springmeyer/arc.js
